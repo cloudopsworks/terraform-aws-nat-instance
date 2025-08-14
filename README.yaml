@@ -1,0 +1,124 @@
+name: Terraform Nat Instance
+#logo: logo/logo.jpg
+
+license: "APACHE2"
+
+copyrights:
+  - name: "Cloud Ops Works LLC"
+    url: "https://cloudops.works"
+    year: "2025"
+
+github_repo: cloudopsworks/terraform-aws-nat-instance
+
+description: |-
+  Terraform module for provisioning a NAT instance with auto healing, cost optimization using spot instances, and fixed source IP address support.
+  
+  Features:
+  - Providing NAT for private subnet(s)
+  - Auto healing using an auto scaling group
+  - Saving cost using a spot instance (from $1/month)
+  - Fixed source IP address by reattaching ENI
+  - Supporting Systems Manager Session Manager
+  - Compatible with workspaces
+
+# Introduction to the project
+introduction: |-
+  This module provides a very low cost solution for NAT functionality in AWS. **Warning**: Generally you should use a NAT gateway. This module is designed for testing purposes and cost optimization scenarios.
+  
+  Terraform 0.12 or later is required.
+  
+  The module provisions resources including Auto Scaling Group, Launch Template, Elastic Network Interface, Security Group, and IAM Role for SSM and ENI attachment. The instance executes initialization scripts to enable NAT functionality with IP forwarding and masquerade configuration.
+
+# How to use this project
+usage: |-
+  You can use this module with [terraform-aws-modules/vpc/aws](https://registry.terraform.io/modules/terraform-aws-modules/vpc/aws) module. The module accepts various configuration options including custom user data, SSH access configuration, and spot instance settings.
+  
+  ### User data configuration
+  You can set additional `write_files` and `runcmd` sections:
+  
+  ```tf
+  module "nat" {
+    user_data_write_files = [
+      {
+        path : "/opt/nat/run.sh",
+        content : file("./run.sh"),
+        permissions : "0755",
+      },
+    ]
+    user_data_runcmd = [
+      ["/opt/nat/run.sh"],
+    ]
+  }
+  ```
+  
+  ### SSH access
+  Enable SSH access by setting `key_name` option and opening the security group:
+  
+  ```tf
+  module "nat" {
+    key_name = "YOUR_KEY_PAIR"
+  }
+  
+  resource "aws_security_group_rule" "nat_ssh" {
+    security_group_id = module.nat.sg_id
+    type              = "ingress"
+    cidr_blocks       = ["0.0.0.0/0"]
+    from_port         = 22
+    to_port           = 22
+    protocol          = "tcp"
+  }
+  ```
+
+# Example usage
+examples: |-
+  ```tf
+  module "vpc" {
+    source  = "terraform-aws-modules/vpc/aws"
+
+    name                 = "main"
+    cidr                 = "172.18.0.0/16"
+    azs                  = ["us-west-2a", "us-west-2b", "us-west-2c"]
+    private_subnets      = ["172.18.64.0/20", "172.18.80.0/20", "172.18.96.0/20"]
+    public_subnets       = ["172.18.128.0/20", "172.18.144.0/20", "172.18.160.0/20"]
+    enable_dns_hostnames = true
+  }
+
+  module "nat" {
+    source = "int128/nat-instance/aws"
+
+    name                        = "main"
+    vpc_id                      = module.vpc.vpc_id
+    public_subnet               = module.vpc.public_subnets[0]
+    private_subnets_cidr_blocks = module.vpc.private_subnets_cidr_blocks
+    private_route_table_ids     = module.vpc.private_route_table_ids
+  }
+
+  resource "aws_eip" "nat" {
+    network_interface = module.nat.eni_id
+    tags = {
+      "Name" = "nat-instance-main"
+    }
+  }
+  ```
+
+# How to get started quickly
+quickstart: |-
+  1. **Set up your VPC and subnets** using the terraform-aws-modules/vpc/aws module or your existing VPC configuration
+  
+  2. **Add the NAT instance module** to your Terraform configuration with the basic required parameters
+  
+  3. **Attach an Elastic IP** to the ENI created by the module for a fixed public IP address
+  
+  4. **Create an EC2 instance** in the private subnet to verify the NAT configuration
+  
+  5. **Test connectivity** using AWS Systems Manager Session Manager to log in to the instance and verify external access
+  
+  The module uses the latest Amazon Linux 2 image by default and supports mixed instances policy with spot instances for cost optimization.
+
+include:
+  - "docs/targets.md"
+  - "docs/terraform.md"
+
+contributors:
+  - name: "Cristian Beraha"
+    github: "berahac"
