@@ -1,5 +1,5 @@
 resource "aws_security_group" "this" {
-  name_prefix = var.name
+  name        = "${var.name}-sg"
   vpc_id      = var.vpc_id
   description = "Security group for NAT instance ${var.name}"
   tags        = local.common_tags
@@ -65,9 +65,9 @@ data "aws_ami" "this" {
 }
 
 resource "aws_launch_template" "this" {
-  name_prefix = var.name
-  image_id    = var.image_id != "" ? var.image_id : data.aws_ami.this.id
-  key_name    = var.key_name
+  name     = "${var.name}-launch-templ"
+  image_id = var.image_id != "" ? var.image_id : data.aws_ami.this.id
+  key_name = var.key_name
 
   iam_instance_profile {
     arn = aws_iam_instance_profile.this.arn
@@ -120,7 +120,7 @@ resource "aws_launch_template" "this" {
 }
 
 resource "aws_autoscaling_group" "this" {
-  name_prefix         = var.name
+  name                = "${var.name}-asg"
   desired_capacity    = var.enabled ? 1 : 0
   min_size            = var.enabled ? 1 : 0
   max_size            = 1
@@ -160,14 +160,14 @@ resource "aws_autoscaling_group" "this" {
 }
 
 resource "aws_iam_instance_profile" "this" {
-  name_prefix = var.name
-  role        = aws_iam_role.this.name
+  name = "${var.name}-role"
+  role = aws_iam_role.this.name
 
   tags = local.common_tags
 }
 
 resource "aws_iam_role" "this" {
-  name_prefix        = var.name
+  name               = "${var.name}-role"
   assume_role_policy = <<EOF
 {
   "Version": "2012-10-17",
@@ -192,9 +192,9 @@ resource "aws_iam_role_policy_attachment" "ssm" {
 }
 
 resource "aws_iam_role_policy" "eni" {
-  role        = aws_iam_role.this.name
-  name_prefix = var.name
-  policy      = <<EOF
+  role   = aws_iam_role.this.name
+  name   = "${var.name}-role-policy"
+  policy = <<EOF
 {
     "Version": "2012-10-17",
     "Statement": [
