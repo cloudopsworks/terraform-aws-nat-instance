@@ -1,5 +1,7 @@
 #!/bin/bash -x
 
+dnf install iptables-services -y
+
 # attach the ENI
 aws ec2 attach-network-interface \
   --region "$(/usr/bin/ec2-metadata -z  | sed 's/placement: \(.*\).$/\1/')" \
